@@ -1,0 +1,6 @@
+boto3==1.28.62
+colorlog==6.7.0
+fastapi==0.103.2
+hvac==1.2.1
+psutil==5.9.5
+uvicorn==0.23.2

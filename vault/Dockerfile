@@ -1,0 +1,28 @@
+FROM hashicorp/vault:1.14.2
+
+# VARIALBE FOR TESTING MODE, IF SET TO TRUE
+# VAULT SERVER WILL NOT BE STARTED
+# BUT THE CONTAINER UP
+ENV CHECK_MODE "false"
+
+# VARIABLES TO CREATE A KV SECRET IN VALUT SERVER
+ENV SECRET_USER_NAME ""\
+    SECRET_USER_PWD ""\
+    SECRET_PATH ""\
+    AWS_SECRET_KEY ""\
+    AWS_ACCESS_KEY ""\
+    AWS_REGION ""\
+    AWS_STS_ENDPOINT ""\
+    AWS_SECRET_ENDPOINT ""\
+    AWS_ROLE ""\
+    AWS_IAM_PRINCIPAL_ARN ""
+
+RUN apk add jq && apk add curl
+
+COPY ./asset/* /vault
+
+RUN chmod 6750 /vault/*
+
+EXPOSE 8200:8200
+
+ENTRYPOINT [ "sh", "-c", "/vault/entrypoint.sh" ]
