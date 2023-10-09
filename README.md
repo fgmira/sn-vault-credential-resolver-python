@@ -173,7 +173,6 @@ MID_SERVER_NAME="mid-vault"
 
 10. Start the docker compose:
 ```bash
-```bash
 docker-compose up --build
 ```
 
