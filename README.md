@@ -55,8 +55,19 @@ I found a solution that I think is very interesting and that I believe can be us
 When the ServiceNow instance needs something that makes use of a secretly stored credential in the Vault, it creates a task for the MID Server in the ECC queue. As soon as the MID Server is available, it takes this task from the queue, realizing that it involves a credential stored in the Vault. To retrieve this credential, it instantiates the Java CredentialResolver Class. This class makes a call to the Python API, which in turn authenticates to the Vault Server, retrieves the credential and returns it to the Java CredentialResolver Class. The credential possession class performs the parsing according to the type of credential and from then on the task execution flow returns to normal.
 
 #### How to use
-##### ServiceNow Instance
+Macro Steps:
+```mermaid
+flowchart TD
+    A(Create a PDI Instance) --> B(Configure PDI)
+    B --> C(Clone the Project)
+    C --> D(Build The JAR File)
+    D --> E(Run a Docker Compose)
+    E --> F(Upload JAR in MID Server)
+    F --> G(Create a Flow Action and Test)
+```
+
 1. Log in to https://developer.servicenow.com/ and request a developer instance (PDI)
+
 2. Install the necessary plugins:
     - Access the website [developer.servicenow.com](https://developer.servicenow.com/dev.do)
     - In the top bar, click on your user's avatar, in the instance actions column click on `Activate Plugin`
@@ -125,72 +136,10 @@ When the ServiceNow instance needs something that makes use of a secretly stored
              - `Credential`: `test_user`
          - Click `Submit`
 
-6. Execute the steps in Local Environment in following section
+6. Install [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
 
-7. Validating the **MID Server**:
-    - Access your ***PDI*** and log in with the user `admin`
-    - Access the `MID Server > Servers` menu
-    - Select the `mid-vault` server
-    - Click on `Validate`
-    - Wait for the validation to finish and check the result :tada:
-
-8. Uploadin the `CredentialResolver` **JAR file** to the MID Server:
-    - Access your ***PDI*** and log in with the user `admin`
-    - Access the `MID Server > JAR Files` menu
-    - Click on `New`
-    - Fill in the fields:
-        - `Name`: `CredentialResolver`
-        - `Version`: `0.0.1`
-        - Click on the `Paperclip` in the upper right corner of the screen and select the `mid-server/mid-hashicorp-external-credential-resolver/target/hashicorp-credential-resolver-0.0.1-SNAPSHOT.jar` file.
-
-9. Restarting ***MID Server***:
-    - Access your ***PDI*** and log in with the user `admin`
-    - Access the `MID Server > Servers` menu
-    - Select the `mid-vault` server
-    - Click on `Restart`
-    - Wait for the restart to finish and check the result :tada:
-
-10. Validating the `Credential Resolver`:
-    - Access your ***PDI*** and log in with the user `admin`
-    - Access the `Flow Designer` menu
-    - In the new open screen, create a new `Action`:
-        - On the `Action Properties` Screen:
-            - Fill in the fields:
-                - `Name`: `Test Credential Resolver`
-                - `Description`: `Test Credential Resolver`
-                - Leave the other fields at their default values
-            - Click `Submit`
-        - On the `Action Designer` Screen:
-            - Add a step of type `REST`:
-                - On the `Step Properties` screen:
-                    - `Connection`: `Use Connection Alias`
-                    - `Connection Alias`:
-                    - Click on the `+` button. You will be directed to the screen for creating an `HTTP(s) Connection`:
-                            - Fill in the fields:
-                                - `Name`: `Get User List`
-                                - `Credential`: `test_user`
-                                - `Connection Aias`: Click in `magnifier glass` and New Button
-                                - `Name`: Service Now Intance
-                                - Click `Submit`
-                                - `Connection URL`: `https://<your instance>.service-now.com/`
-                                - `Use MID Server`: `true`
-                                - `MID Selection` : `Specific MID Server`
-                                - `MID Server`: `mid-vault`
-                                - Click `Submit`
-                    - In Request Details:
-                        - Build Request: `Manually`
-                        - Resource Path: `aapi/now/table/sys_user?sysparm_query=user_name%3Dtest_user`
-                        - HTTP method: `GET`
-                    - Click `Save`
-                    - Click `Test`
-                    - In the Test Action screen, click `Run Test`
-                    - Wait for the test to finish and check the result :tada:
-
-
-#### Local Environment
-1. Install [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
-2. Clone this repository
-3. Create a `.env` file:
+7. Clone this repository
+8. Create a `.env` file:
 ```env
 VAULT_TOKEN="root"
 VAULT_ADDR="http://vault_server:8200"
@@ -219,10 +168,70 @@ MID_INSTANCE_USERNAME="mid_server"
 MID_INSTANCE_PASSWORD="<password created in step 3 in Service Now Instance>"
 MID_SERVER_NAME="mid-vault"    
 ```
-4. Now you need to build the java class jar that needs to be loaded on the mid server. This project is in the `mid-server/mid-hashicorp-external-credential-resolver` folder. It's a maven java project and you can use the IDE you prefer (Eclipse, Intellij, VS Code, etc).
 
-5. Run the command in the root of the project:
+9. Now you need to build the java class jar that needs to be loaded on the mid server. This project is in the `mid-server/mid-hashicorp-external-credential-resolver` folder. It's a maven java project and you can use the IDE you prefer (Eclipse, Intellij, VS Code, etc).
+
+10. Start the docker compose:
+```bash
 ```bash
 docker-compose up --build
 ```
 
+11. Validating the **MID Server**:
+    - Access your ***PDI*** and log in with the user `admin`
+    - Access the `MID Server > Servers` menu
+    - Select the `mid-vault` server
+    - Click on `Validate`
+    - Wait for the validation to finish and check the result :tada:
+
+12. Uploadin the `CredentialResolver` **JAR file** to the MID Server:
+    - Access your ***PDI*** and log in with the user `admin`
+    - Access the `MID Server > JAR Files` menu
+    - Click on `New`
+    - Fill in the fields:
+        - `Name`: `CredentialResolver`
+        - `Version`: `0.0.1`
+        - Click on the `Paperclip` in the upper right corner of the screen and select the `mid-server/mid-hashicorp-external-credential-resolver/target/hashicorp-credential-resolver-0.0.1-SNAPSHOT.jar` file.
+
+13. Restarting ***MID Server***:
+    - Access your ***PDI*** and log in with the user `admin`
+    - Access the `MID Server > Servers` menu
+    - Select the `mid-vault` server
+    - Click on `Restart`
+    - Wait for the restart to finish and check the result :tada:
+
+14. Validating the `Credential Resolver`:
+    - Access your ***PDI*** and log in with the user `admin`
+    - Access the `Flow Designer` menu
+    - In the new open screen, create a new `Action`:
+        - On the `Action Properties` Screen:
+            - Fill in the fields:
+                - `Name`: `Test Credential Resolver`
+                - `Description`: `Test Credential Resolver`
+                - Leave the other fields at their default values
+            - Click `Submit`
+        - On the `Action Designer` Screen:
+            - Add a step of type `REST`:
+                - On the `Step Properties` screen:
+                    - `Connection`: `Use Connection Alias`
+                    - `Connection Alias`:
+                    - Click on the `+` button. You will be directed to the screen for creating an `HTTP(s) Connection`:
+                        - Fill in the fields:
+                            - `Name`: `Get User List`
+                            - `Credential`: `test_user`
+                            - `Connection Aias`: Click in `magnifier glass` and New Button
+                            - `Name`: Service Now Intance
+                            - Click `Submit`
+                            - `Connection URL`: `https://<your instance>.service-now.com/`
+                            - `Use MID Server`: `true`
+                            - `MID Selection` : `Specific MID Server`
+                            - `MID Server`: `mid-vault`
+                            - Click `Submit`
+                    - In Request Details:
+                        - Build Request: `Manually`
+                        - Resource Path: `aapi/now/table/sys_user?sysparm_query=user_name%3Dtest_user`
+                        - HTTP method: `GET`
+                    - Click `Save`
+                    - Click `Test`
+                    - In the Test Action screen, click `Run Test`
+                    - Wait for the test to finish and check the result :tada:
