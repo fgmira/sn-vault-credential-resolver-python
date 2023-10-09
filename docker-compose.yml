@@ -1,0 +1,142 @@
+version: '3.7'
+
+services:
+  localstack:
+    # image: localstack/localstack
+    image: localstack/localstack
+    container_name: localstack
+    ports:
+      - "4566:4566"
+      - "4571:4571"
+    environment:
+      SERVICES: ${LOCALSTACK_SERVICES}
+      DEBUG: "1"
+      DATA_DIR: "/tmp/localstack/data"
+    volumes:
+      - "./localstack/volume:/tmp/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+  warmup:
+    build: warmup/
+    container_name: warmup
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_KEY}
+      AWS_DEFAULT_REGION: ${AWS_REGION}
+      AWS_ENDPOINT_URL: ${AWS_STS_ENDPOINT}
+      AWS_SECRET_NAME: ${AWS_SECRET_NAME}
+      SECRET_USER_NAME: ${SECRET_USER_NAME}
+      SECRET_USER_PWD: ${SECRET_USER_PWD}
+      AWS_ACCOUNT_ID: ${AWS_ACCOUNT_ID}
+      AWS_ROLE_NAME: ${AWS_ROLE}
+    depends_on:
+      - localstack
+
+  vault_server:
+    build: vault/
+    container_name: vault_server
+    restart: always
+    ports:
+      - "8200:8200"
+    environment:
+      # VARIALBE FOR TESTING MODE, IF SET TO TRUE
+      # VAULT SERVER WILL NOT BE STARTED
+      # BUT THE CONTAINER UP
+      CHECK_MODE: ${CHECK_MODE}
+      LOG_LEVEL: ${LOG_LEVEL}
+      # VARIABLE TO SET A USER AND LISTENER ADDRESS
+      # FOR VAULT SERVER
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_TOKEN}
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+      # VARIABLES TO CREATE A KV SECRET IN VALUT SERVER
+      SECRET_USER_NAME: ${SECRET_USER_NAME}
+      SECRET_USER_PWD: ${SECRET_USER_PWD}
+      SECRET_PATH: ${SECRET_PATH}
+      AWS_STS_ENDPOINT: ${AWS_STS_ENDPOINT}
+      AWS_ROLE_ARN: ${AWS_ROLE_ARN}
+      AWS_ROLE: ${AWS_ROLE}
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}
+      AWS_SECRET_KEY: ${AWS_SECRET_KEY}
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./vault/volumes/data:/vault/data
+      - ./vault/volumes/config:/vault/config
+      - ./vault/volumes/logs:/vault/logs
+      - ./vault/volumes/role:/vault/role
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://127.0.0.1:8200/v1/sys/health"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 2
+      start_period: 15s
+    depends_on:
+      warmup:
+        condition: service_completed_successfully
+
+  credential_resolver_py:
+    build: credential-resolver-py/
+    container_name: credential_resolver_py
+    ports:
+      - "8000:8000"
+    environment:
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      LOG_LEVEL: ${LOG_LEVEL}
+      AWS_STS_ENDPOINT: ${AWS_STS_ENDPOINT}
+      AWS_SECRET_ENDPOINT: ${AWS_SECRET_ENDPOINT}
+      AWS_SECRET_NAME: ${AWS_SECRET_NAME}
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}
+      AWS_SECRET_KEY: ${AWS_SECRET_KEY}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://127.0.0.1:8000/api/v1/health"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 2
+      start_period: 5s
+    depends_on:
+      warmup:
+        condition: service_completed_successfully
+      vault_server:
+        condition: service_healthy
+
+  mid_server:
+    build: mid-server/Docker/
+    container_name: mid_server
+    environment:
+      # MID SERVER ENV VAR
+      # Mandatory Env Var
+      MID_INSTANCE_URL: ${MID_INSTANCE_URL}
+      MID_INSTANCE_USERNAME: ${MID_INSTANCE_USERNAME}
+      MID_INSTANCE_PASSWORD: ${MID_INSTANCE_PASSWORD}
+      MID_SERVER_NAME: ${MID_SERVER_NAME}
+      # Optional Env Var
+      MID_PROXY_HOST: ""
+      MID_PROXY_PORT: ""
+      MID_PROXY_USERNAME: ""
+      MID_PROXY_PASSWORD: ""
+      MID_SECRETS_FILE: ""
+      MID_MUTUAL_AUTH_PEM_FILE: ""
+      MID_SSL_BOOTSTRAP_CERT_REVOCATION_CHECK: ""
+      MID_SSL_USE_INSTANCE_SECURITY_POLICY: ""
+      # CUSTOM ENV VAR
+      AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}
+      AWS_SECRET_KEY: ${AWS_SECRET_KEY}
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCOUNT_ID: ${AWS_ACCOUNT_ID}
+      AWS_ENDPOINT: ${AWS_STS_ENDPOINT}
+      AWS_SECRET_NAME: ${AWS_SECRET_NAME}
